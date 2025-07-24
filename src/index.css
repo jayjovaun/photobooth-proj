@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom vintage styles */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    font-family: 'Roboto Mono', monospace;
+    background: linear-gradient(135deg, #f5ecd8 0%, #deb887 100%);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* Vintage button styles */
+  .btn-vintage {
+    @apply px-6 py-3 bg-vintage-brown text-vintage-cream font-vintage font-bold uppercase tracking-wider;
+    @apply border-2 border-vintage-dark shadow-lg transform transition-all duration-200;
+    @apply hover:scale-105 hover:shadow-xl active:scale-95;
+    @apply focus:outline-none focus:ring-4 focus:ring-vintage-sepia focus:ring-opacity-50;
+  }
+  
+  .btn-shutter {
+    @apply w-20 h-20 bg-red-600 hover:bg-red-700 text-white rounded-full;
+    @apply border-4 border-red-800 shadow-2xl transform transition-all duration-200;
+    @apply hover:scale-110 active:scale-95 focus:outline-none focus:ring-4 focus:ring-red-300;
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+  }
+  
+  .btn-shutter:active {
+    @apply animate-flash;
+  }
+  
+  /* Vintage card styling */
+  .vintage-card {
+    @apply bg-vintage-cream border-2 border-vintage-brown shadow-xl rounded-lg;
+    @apply backdrop-blur-sm bg-opacity-95;
+    background-image: 
+      radial-gradient(circle at 1px 1px, rgba(139, 69, 19, 0.15) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+  
+  /* Camera preview styling */
+  .camera-preview {
+    @apply rounded-lg border-4 border-vintage-brown shadow-2xl;
+    @apply transform transition-all duration-300;
+    filter: sepia(10%) contrast(120%) brightness(110%);
+  }
+  
+  /* Filter button styles */
+  .filter-btn {
+    @apply px-4 py-2 bg-vintage-sepia text-vintage-dark font-vintage font-semibold;
+    @apply border border-vintage-brown rounded-md transition-all duration-200;
+    @apply hover:bg-vintage-brown hover:text-vintage-cream transform hover:scale-105;
+    @apply focus:outline-none focus:ring-2 focus:ring-vintage-olive;
+  }
+  
+  .filter-btn.active {
+    @apply bg-vintage-brown text-vintage-cream ring-2 ring-vintage-olive;
+  }
+  
+  /* Vintage text styles */
+  .vintage-title {
+    @apply text-vintage-dark font-retro text-3xl md:text-4xl text-center;
+    @apply drop-shadow-lg tracking-wider;
+    text-shadow: 2px 2px 0px rgba(139, 69, 19, 0.3);
+  }
+  
+  .vintage-subtitle {
+    @apply text-vintage-brown font-vintage text-lg text-center;
+    @apply opacity-80;
+  }
+  
+  /* Caption text styling - preserve case */
+  .font-chisel {
+    text-transform: none !important;
+  }
+  
+  /* Loading animation */
+  .loading-dots {
+    @apply inline-flex space-x-1;
+  }
+  
+  .loading-dots > div {
+    @apply w-2 h-2 bg-vintage-brown rounded-full animate-pulse;
+    animation-delay: calc(var(--delay) * 0.2s);
+  }
+  
+  /* Retro scanlines effect */
+  .scanlines::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      transparent 0%,
+      rgba(0, 0, 0, 0.03) 50%,
+      transparent 51%,
+      rgba(0, 0, 0, 0.03) 100%
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 10;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5ecd8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8b4513;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b3410;
+}
+
+/* Print styles for downloaded images */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-photo, .print-photo * {
+    visibility: visible;
+  }
+  
+  .print-photo {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+} 
