@@ -1,0 +1,9 @@
+node_modules
+.git
+.vscode
+*.log
+.env*
+.DS_Store
+Thumbs.db
+dist
+.next 
