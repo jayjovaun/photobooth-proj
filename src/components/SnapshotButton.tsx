@@ -11,10 +11,17 @@ const SnapshotButton: FC<SnapshotButtonProps> = ({
   isCapturing,
   disabled = false
 }) => {
+  const handleClick = () => {
+    console.log('Snapshot button clicked, capturing:', isCapturing, 'disabled:', disabled)
+    if (!disabled && !isCapturing) {
+      onCapture()
+    }
+  }
+
   return (
     <div className="flex flex-col items-center">
       <button
-        onClick={onCapture}
+        onClick={handleClick}
         disabled={disabled || isCapturing}
         className={`
           btn-shutter flex items-center justify-center

@@ -46,22 +46,66 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
         if (videoRef.current && stream) {
           videoRef.current.srcObject = stream
           
-          // Wait for video to load metadata
+          // Wait for video to load metadata and be ready
           await new Promise((resolve, reject) => {
             if (!videoRef.current) return reject('Video ref lost')
             
-            videoRef.current.onloadedmetadata = () => {
+            const video = videoRef.current
+            let resolved = false
+            
+            const checkVideoReady = () => {
+              if (resolved) return
+              
+              console.log('Checking video ready state:', {
+                readyState: video.readyState,
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight
+              })
+              
+              // Consider video ready if we have at least current data and dimensions
+              if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+                resolved = true
+                console.log('Video is ready!')
+                resolve(true)
+              }
+            }
+            
+            video.onloadedmetadata = () => {
               console.log('Video metadata loaded')
-              resolve(true)
+              checkVideoReady()
             }
             
-            videoRef.current.onerror = (e) => {
+            video.onloadeddata = () => {
+              console.log('Video data loaded')
+              checkVideoReady()
+            }
+            
+            video.oncanplay = () => {
+              console.log('Video can play')
+              checkVideoReady()
+            }
+            
+            video.onerror = (e) => {
               console.error('Video error:', e)
-              reject(e)
+              if (!resolved) {
+                resolved = true
+                reject(e)
+              }
             }
             
-            // Force load if needed
-            videoRef.current.load()
+            // If video is already ready, resolve immediately
+            if (video.readyState >= 2 && video.videoWidth > 0) {
+              checkVideoReady()
+            }
+            
+            // Timeout fallback
+            setTimeout(() => {
+              if (!resolved) {
+                console.log('Video load timeout, trying to proceed anyway...')
+                resolved = true
+                resolve(true)
+              }
+            }, 5000)
           })
 
           // Play the video

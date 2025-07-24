@@ -68,41 +68,82 @@ function App() {
       return null
     }
 
-    // Check if video is actually playing
-    if (video.readyState !== 4) {
-      console.error('Video not ready, readyState:', video.readyState)
-      return null
-    }
+    // More flexible video readiness check for production
+    const videoReady = video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0
+    const hasStream = video.srcObject && video.srcObject.active
 
-    console.log('Capturing photo...', {
+    console.log('Video status:', {
+      readyState: video.readyState,
       videoWidth: video.videoWidth,
       videoHeight: video.videoHeight,
-      readyState: video.readyState
+      paused: video.paused,
+      ended: video.ended,
+      hasStream: hasStream,
+      videoReady: videoReady
     })
 
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth || 1280
-    canvas.height = video.videoHeight || 720
+    if (!videoReady) {
+      console.error('Video not ready for capture. Trying to force capture anyway...')
+      // Don't return null, try to capture anyway with fallback dimensions
+    }
 
-    // Mirror the image horizontally (like selfie camera)
-    ctx.save()
-    ctx.scale(-1, 1)
-    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
-    ctx.restore()
-
-    // Apply the selected filter
-    applyFilter(ctx, canvas, photoSession.settings.filter)
-
-    // Add vintage frame overlay
-    addVintageFrame(ctx, canvas)
-
-    // Get the image data
-    const dataUrl = canvas.toDataURL('image/png', 0.9)
-    console.log('Photo captured successfully, data URL length:', dataUrl.length)
+    // Set canvas dimensions with fallbacks
+    const width = video.videoWidth > 0 ? video.videoWidth : 1280
+    const height = video.videoHeight > 0 ? video.videoHeight : 720
     
-    return {
-      dataUrl,
-      timestamp: Date.now()
+    canvas.width = width
+    canvas.height = height
+
+    console.log('Capturing with dimensions:', { width, height })
+
+    try {
+      // Clear canvas first
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Mirror the image horizontally (like selfie camera)
+      ctx.save()
+      ctx.scale(-1, 1)
+      
+      // Draw video to canvas - this might fail silently if video isn't ready
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
+      ctx.restore()
+
+      // Check if we actually drew something
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const hasData = imageData.data.some(pixel => pixel !== 0)
+      
+      if (!hasData) {
+        console.error('No image data captured - canvas is blank')
+        // Try again without mirroring
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        
+        const retryImageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const retryHasData = retryImageData.data.some(pixel => pixel !== 0)
+        
+        if (!retryHasData) {
+          console.error('Still no image data - video stream might not be working')
+          return null
+        }
+      }
+
+      // Apply the selected filter
+      applyFilter(ctx, canvas, photoSession.settings.filter)
+
+      // Add vintage frame overlay
+      addVintageFrame(ctx, canvas)
+
+      // Get the image data
+      const dataUrl = canvas.toDataURL('image/png', 0.9)
+      console.log('Photo captured successfully, data URL length:', dataUrl.length)
+      
+      return {
+        dataUrl,
+        timestamp: Date.now()
+      }
+    } catch (error) {
+      console.error('Error during photo capture:', error)
+      return null
     }
   }, [photoSession.settings.filter])
 
