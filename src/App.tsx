@@ -85,16 +85,9 @@ function App() {
       currentTime: video.currentTime
     })
 
-    // Wait a moment if video just started
+    // Check video readiness (no await needed)
     if (!hasValidDimensions || video.readyState < 2) {
-      console.log('Video not fully ready, waiting...')
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Re-check after waiting
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        console.error('Video still has no dimensions - capture may fail')
-        // Continue anyway but use fallback dimensions
-      }
+      console.log('Video not fully ready - using fallback dimensions')
     }
 
     // Set canvas dimensions with fallbacks
