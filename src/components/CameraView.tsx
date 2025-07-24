@@ -15,58 +15,97 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
 
     useImperativeHandle(ref, () => videoRef.current as HTMLVideoElement)
 
-    useEffect(() => {
-      let stream: MediaStream | null = null
+      useEffect(() => {
+    let stream: MediaStream | null = null
 
-      const initCamera = async () => {
-        try {
-          setIsLoading(true)
-          setError(null)
+    const initCamera = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
 
-          // Request camera access
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              facingMode: 'user'
-            },
-            audio: false
+        // Check if getUserMedia is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera API not supported')
+        }
+
+        // Request camera access with more specific constraints for production
+        const constraints = {
+          video: {
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 },
+            facingMode: 'user',
+            aspectRatio: { ideal: 16/9 }
+          },
+          audio: false
+        }
+
+        console.log('Requesting camera access...', constraints)
+        stream = await navigator.mediaDevices.getUserMedia(constraints)
+        console.log('Camera stream obtained:', stream)
+
+        if (videoRef.current && stream) {
+          videoRef.current.srcObject = stream
+          
+          // Wait for video to load metadata
+          await new Promise((resolve, reject) => {
+            if (!videoRef.current) return reject('Video ref lost')
+            
+            videoRef.current.onloadedmetadata = () => {
+              console.log('Video metadata loaded')
+              resolve(true)
+            }
+            
+            videoRef.current.onerror = (e) => {
+              console.error('Video error:', e)
+              reject(e)
+            }
+            
+            // Force load if needed
+            videoRef.current.load()
           })
 
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream
-            await videoRef.current.play()
-            setHasPermission(true)
-          }
-        } catch (err) {
-          console.error('Camera access error:', err)
-          setHasPermission(false)
-          
-          if (err instanceof Error) {
-            if (err.name === 'NotAllowedError') {
-              setError('Camera access denied. Please allow camera permissions and refresh the page.')
-            } else if (err.name === 'NotFoundError') {
-              setError('No camera found. Please ensure your device has a camera.')
-            } else if (err.name === 'NotSupportedError') {
-              setError('Camera not supported in this browser. Try Chrome, Firefox, or Safari.')
-            } else {
-              setError('Failed to access camera. Please check your permissions and try again.')
-            }
-          }
-        } finally {
-          setIsLoading(false)
+          // Play the video
+          await videoRef.current.play()
+          console.log('Video playing successfully')
+          setHasPermission(true)
         }
-      }
-
-      initCamera()
-
-      // Cleanup function
-      return () => {
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop())
+      } catch (err) {
+        console.error('Camera initialization error:', err)
+        setHasPermission(false)
+        
+        if (err instanceof Error) {
+          if (err.name === 'NotAllowedError') {
+            setError('Camera access denied. Please click the camera icon in your browser address bar and allow camera access, then refresh.')
+          } else if (err.name === 'NotFoundError') {
+            setError('No camera found. Please connect a camera and refresh the page.')
+          } else if (err.name === 'NotSupportedError' || err.message.includes('not supported')) {
+            setError('Camera not supported. Please use Chrome, Firefox, or Safari on a secure connection (HTTPS).')
+          } else if (err.name === 'NotReadableError') {
+            setError('Camera is being used by another application. Please close other camera apps and refresh.')
+          } else {
+            setError(`Camera error: ${err.message}. Please check permissions and try again.`)
+          }
         }
+      } finally {
+        setIsLoading(false)
       }
-    }, [])
+    }
+
+    // Add a small delay to ensure DOM is ready
+    const timer = setTimeout(initCamera, 100)
+
+    // Cleanup function
+    return () => {
+      clearTimeout(timer)
+      if (stream) {
+        console.log('Cleaning up camera stream')
+        stream.getTracks().forEach(track => {
+          track.stop()
+          console.log('Stopped track:', track.kind)
+        })
+      }
+    }
+  }, [])
 
     const getFilterClass = (filterType: FilterType): string => {
       const baseClasses = "w-full h-auto camera-preview transition-all duration-300"
@@ -133,6 +172,14 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
           autoPlay
           playsInline
           muted
+          controls={false}
+          webkit-playsinline="true"
+          style={{ 
+            transform: 'scaleX(-1)', // Mirror the video like a selfie camera
+            width: '100%',
+            height: 'auto',
+            minHeight: '300px'
+          }}
         />
         
         {/* Capture Flash Effect */}

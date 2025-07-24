@@ -54,18 +54,41 @@ function App() {
   const stripCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return null
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('Video or canvas ref not available')
+      return null
+    }
 
     const video = videoRef.current
     const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')!
+    const ctx = canvas.getContext('2d')
+
+    if (!ctx) {
+      console.error('Could not get canvas context')
+      return null
+    }
+
+    // Check if video is actually playing
+    if (video.readyState !== 4) {
+      console.error('Video not ready, readyState:', video.readyState)
+      return null
+    }
+
+    console.log('Capturing photo...', {
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
+      readyState: video.readyState
+    })
 
     // Set canvas dimensions to match video
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
+    canvas.width = video.videoWidth || 1280
+    canvas.height = video.videoHeight || 720
 
-    // Draw the video frame to canvas
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    // Mirror the image horizontally (like selfie camera)
+    ctx.save()
+    ctx.scale(-1, 1)
+    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
+    ctx.restore()
 
     // Apply the selected filter
     applyFilter(ctx, canvas, photoSession.settings.filter)
@@ -75,6 +98,7 @@ function App() {
 
     // Get the image data
     const dataUrl = canvas.toDataURL('image/png', 0.9)
+    console.log('Photo captured successfully, data URL length:', dataUrl.length)
     
     return {
       dataUrl,
