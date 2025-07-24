@@ -70,7 +70,7 @@ function App() {
 
     // More flexible video readiness check for production
     const videoReady = video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0
-    const hasStream = video.srcObject && video.srcObject.active
+    const hasStream = video.srcObject && (video.srcObject as MediaStream).active
 
     console.log('Video status:', {
       readyState: video.readyState,
