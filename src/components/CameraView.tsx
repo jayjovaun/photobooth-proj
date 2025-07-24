@@ -51,7 +51,7 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
         if (videoRef.current && stream) {
           videoRef.current.srcObject = stream
           
-          // Wait for video to load metadata and be ready
+          // Force video to load and be ready for capture
           await new Promise((resolve, reject) => {
             if (!videoRef.current) return reject('Video ref lost')
             
@@ -64,10 +64,11 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
               console.log('Checking video ready state:', {
                 readyState: video.readyState,
                 videoWidth: video.videoWidth,
-                videoHeight: video.videoHeight
+                videoHeight: video.videoHeight,
+                currentTime: video.currentTime
               })
               
-              // Consider video ready if we have at least current data and dimensions
+              // More robust readiness check for production
               if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
                 resolved = true
                 console.log('Video is ready!')
@@ -75,20 +76,11 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
               }
             }
             
-            video.onloadedmetadata = () => {
-              console.log('Video metadata loaded')
-              checkVideoReady()
-            }
-            
-            video.onloadeddata = () => {
-              console.log('Video data loaded')
-              checkVideoReady()
-            }
-            
-            video.oncanplay = () => {
-              console.log('Video can play')
-              checkVideoReady()
-            }
+            // Multiple event listeners for better compatibility
+            video.onloadedmetadata = checkVideoReady
+            video.onloadeddata = checkVideoReady  
+            video.oncanplay = checkVideoReady
+            video.oncanplaythrough = checkVideoReady
             
             video.onerror = (e) => {
               console.error('Video error:', e)
@@ -98,19 +90,32 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
               }
             }
             
+            // Force video to start loading if stream is available
+            if (video.srcObject && video.readyState === 0) {
+              console.log('Forcing video to load...')
+              video.load()
+            }
+            
             // If video is already ready, resolve immediately
             if (video.readyState >= 2 && video.videoWidth > 0) {
               checkVideoReady()
             }
             
-            // Timeout fallback
+            // Extended timeout for production environments
             setTimeout(() => {
               if (!resolved) {
-                console.log('Video load timeout, trying to proceed anyway...')
-                resolved = true
-                resolve(true)
+                console.log('Video load timeout - checking current state...')
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                  console.log('Video has dimensions, proceeding...')
+                  resolved = true
+                  resolve(true)
+                } else {
+                  console.log('Video still not ready, forcing resolution...')
+                  resolved = true
+                  resolve(true) // Still try to proceed
+                }
               }
-            }, 5000)
+            }, 10000) // Longer timeout for production
           })
 
           // Play the video

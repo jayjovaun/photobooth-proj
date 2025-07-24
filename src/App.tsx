@@ -68,23 +68,33 @@ function App() {
       return null
     }
 
-    // More flexible video readiness check for production
-    const videoReady = video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0
-    const hasStream = video.srcObject && (video.srcObject as MediaStream).active
-
-    console.log('Video status:', {
+    // Production-ready video state checking
+    const hasValidDimensions = video.videoWidth > 0 && video.videoHeight > 0
+    const hasActiveStream = video.srcObject && (video.srcObject as MediaStream).active
+    const isPlaying = !video.paused && !video.ended
+    
+    console.log('Video capture status:', {
       readyState: video.readyState,
       videoWidth: video.videoWidth,
       videoHeight: video.videoHeight,
       paused: video.paused,
       ended: video.ended,
-      hasStream: hasStream,
-      videoReady: videoReady
+      hasActiveStream: hasActiveStream,
+      hasValidDimensions: hasValidDimensions,
+      isPlaying: isPlaying,
+      currentTime: video.currentTime
     })
 
-    if (!videoReady) {
-      console.error('Video not ready for capture. Trying to force capture anyway...')
-      // Don't return null, try to capture anyway with fallback dimensions
+    // Wait a moment if video just started
+    if (!hasValidDimensions || video.readyState < 2) {
+      console.log('Video not fully ready, waiting...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Re-check after waiting
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        console.error('Video still has no dimensions - capture may fail')
+        // Continue anyway but use fallback dimensions
+      }
     }
 
     // Set canvas dimensions with fallbacks
