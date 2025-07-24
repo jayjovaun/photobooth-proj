@@ -47,13 +47,14 @@ function App() {
   const [currentShot, setCurrentShot] = useState(0)
   const [countdown, setCountdown] = useState(0)
   const [finalStrip, setFinalStrip] = useState<string | null>(null)
+  const [isVideoReady, setIsVideoReady] = useState(false)
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const stripCanvasRef = useRef<HTMLCanvasElement>(null)
 
-  const capturePhoto = useCallback(() => {
+  const capturePhoto = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) {
       console.error('Video or canvas ref not available')
       return null
@@ -68,39 +69,59 @@ function App() {
       return null
     }
 
-    // Check if video has stream but isn't ready - force initialization
-    if (video.srcObject && video.readyState === 0) {
-      console.log('Video has stream but readyState is 0, forcing initialization...')
-      video.load()
-      if (video.paused) {
-        video.play().catch(e => console.error('Failed to play video:', e))
+    // Enhanced video readiness check with retry mechanism
+    const waitForVideoReady = async (maxAttempts = 5): Promise<boolean> => {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const hasValidDimensions = video.videoWidth > 0 && video.videoHeight > 0
+        const hasActiveStream = video.srcObject && (video.srcObject as MediaStream).active
+        const isReadyState = video.readyState >= 2
+        
+        console.log(`Video readiness check (attempt ${attempt}/${maxAttempts}):`, {
+          readyState: video.readyState,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          paused: video.paused,
+          ended: video.ended,
+          hasActiveStream: hasActiveStream,
+          hasValidDimensions: hasValidDimensions,
+          isReadyState: isReadyState,
+          currentTime: video.currentTime
+        })
+
+        // If video is ready, return success
+        if (hasValidDimensions && hasActiveStream && isReadyState) {
+          console.log('✅ Video is ready for capture!')
+          setIsVideoReady(true)
+          return true
+        }
+
+        // Try to force initialization if stream exists but video isn't ready
+        if (video.srcObject && !hasValidDimensions) {
+          console.log(`🔄 Attempt ${attempt}: Forcing video initialization...`)
+          try {
+            video.load()
+            if (video.paused) {
+              await video.play()
+            }
+          } catch (e) {
+            console.error('Failed to force video initialization:', e)
+          }
+        }
+
+        // Wait before next attempt (except on last attempt)
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
       }
-      console.error('Video not ready yet - please try again in a moment')
-      return null
+
+      console.error('❌ Video failed to initialize after all attempts')
+      return false
     }
 
-    // Production-ready video state checking  
-    const hasValidDimensions = video.videoWidth > 0 && video.videoHeight > 0
-    const hasActiveStream = video.srcObject && (video.srcObject as MediaStream).active
-    const isPlaying = !video.paused && !video.ended
-    
-    console.log('Video capture status:', {
-      readyState: video.readyState,
-      videoWidth: video.videoWidth,
-      videoHeight: video.videoHeight,
-      paused: video.paused,
-      ended: video.ended,
-      hasActiveStream: hasActiveStream,
-      hasValidDimensions: hasValidDimensions,
-      isPlaying: isPlaying,
-      currentTime: video.currentTime
-    })
-
-    // Last resort - if no dimensions but we have a stream, try anyway
-    if (!hasValidDimensions && hasActiveStream) {
-      console.log('No video dimensions but stream is active - proceeding with fallback')
-    } else if (video.readyState === 0 && video.videoWidth === 0) {
-      console.error('Video element completely uninitialized - cannot capture')
+    // Wait for video to be ready
+    const isReady = await waitForVideoReady()
+    if (!isReady) {
+      console.error('Video element not ready for capture - please wait and try again')
       return null
     }
 
@@ -180,9 +201,9 @@ function App() {
       setCountdown(0)
       setIsCapturing(true)
       
-      // Capture photo
-      await new Promise(resolve => setTimeout(resolve, 200)) // Flash effect
-      const photo = capturePhoto()
+      // Flash effect then capture photo
+      await new Promise(resolve => setTimeout(resolve, 200))
+      const photo = await capturePhoto()
       
       if (photo) {
         setPhotoSession(prev => ({
@@ -213,16 +234,18 @@ function App() {
   const handleSingleCapture = useCallback(async () => {
     setIsCapturing(true)
     
-    setTimeout(() => {
-      const photo = capturePhoto()
-      if (photo) {
-        setPhotoSession(prev => ({
-          ...prev,
-          photos: [photo]
-        }))
-      }
-      setIsCapturing(false)
-    }, 300)
+    // Flash effect then capture
+    await new Promise(resolve => setTimeout(resolve, 300))
+    const photo = await capturePhoto()
+    
+    if (photo) {
+      setPhotoSession(prev => ({
+        ...prev,
+        photos: [photo]
+      }))
+    }
+    
+    setIsCapturing(false)
   }, [capturePhoto])
 
   const applyFilter = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, filter: FilterType) => {
@@ -441,6 +464,33 @@ function App() {
     setFinalStrip(null)
   }
 
+  // Monitor video readiness
+  useEffect(() => {
+    const checkVideoReadiness = () => {
+      if (videoRef.current) {
+        const video = videoRef.current
+        const hasValidDimensions = video.videoWidth > 0 && video.videoHeight > 0
+        const hasActiveStream = video.srcObject && (video.srcObject as MediaStream).active
+        const isReadyState = video.readyState >= 2
+        
+        const ready = hasValidDimensions && hasActiveStream && isReadyState
+        setIsVideoReady(ready)
+        
+        if (ready) {
+          console.log('✅ Video is now ready for capture!')
+        }
+      }
+    }
+
+    // Check immediately
+    checkVideoReadiness()
+
+    // Set up interval to check periodically
+    const interval = setInterval(checkVideoReadiness, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
@@ -537,7 +587,7 @@ function App() {
                   isMultiShot={isMultiShot}
                   onStartMultiShot={startMultiShot}
                   onSingleCapture={handleSingleCapture}
-                  disabled={photoSession.photos.length > 0}
+                  disabled={photoSession.photos.length > 0 || !isVideoReady}
                 />
               </div>
             </div>
