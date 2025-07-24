@@ -25,7 +25,12 @@ const CameraView = forwardRef<HTMLVideoElement, CameraViewProps>(
 
         // Check if getUserMedia is available
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('Camera API not supported')
+          throw new Error('Camera API not supported. Please use HTTPS and a modern browser.')
+        }
+
+        // Check if we're on HTTPS (required for camera in production)
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+          throw new Error('Camera requires HTTPS connection. Please use https:// in the URL.')
         }
 
         // Request camera access with more specific constraints for production
