@@ -68,13 +68,18 @@ function App() {
       return null
     }
 
-    // Force video to play if it's paused
-    if (video.paused && video.srcObject) {
-      console.log('Video is paused, forcing play...')
-      video.play().catch(e => console.error('Failed to play video:', e))
+    // Check if video has stream but isn't ready - force initialization
+    if (video.srcObject && video.readyState === 0) {
+      console.log('Video has stream but readyState is 0, forcing initialization...')
+      video.load()
+      if (video.paused) {
+        video.play().catch(e => console.error('Failed to play video:', e))
+      }
+      console.error('Video not ready yet - please try again in a moment')
+      return null
     }
 
-    // Production-ready video state checking
+    // Production-ready video state checking  
     const hasValidDimensions = video.videoWidth > 0 && video.videoHeight > 0
     const hasActiveStream = video.srcObject && (video.srcObject as MediaStream).active
     const isPlaying = !video.paused && !video.ended
@@ -91,9 +96,11 @@ function App() {
       currentTime: video.currentTime
     })
 
-    // Don't capture if video is completely unready
-    if (video.readyState === 0 && video.videoWidth === 0) {
-      console.error('Video element not initialized - cannot capture')
+    // Last resort - if no dimensions but we have a stream, try anyway
+    if (!hasValidDimensions && hasActiveStream) {
+      console.log('No video dimensions but stream is active - proceeding with fallback')
+    } else if (video.readyState === 0 && video.videoWidth === 0) {
+      console.error('Video element completely uninitialized - cannot capture')
       return null
     }
 
