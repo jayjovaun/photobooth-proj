@@ -89,7 +89,7 @@ function App() {
         })
 
         // If video is ready, return success
-        if (hasValidDimensions && hasActiveStream && isReadyState) {
+        if (hasValidDimensions && !!hasActiveStream && isReadyState) {
           console.log('✅ Video is ready for capture!')
           setIsVideoReady(true)
           return true
@@ -473,7 +473,7 @@ function App() {
         const hasActiveStream = video.srcObject && (video.srcObject as MediaStream).active
         const isReadyState = video.readyState >= 2
         
-        const ready = hasValidDimensions && hasActiveStream && isReadyState
+        const ready = hasValidDimensions && !!hasActiveStream && isReadyState
         setIsVideoReady(ready)
         
         if (ready) {
