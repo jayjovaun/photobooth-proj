@@ -68,6 +68,12 @@ function App() {
       return null
     }
 
+    // Force video to play if it's paused
+    if (video.paused && video.srcObject) {
+      console.log('Video is paused, forcing play...')
+      video.play().catch(e => console.error('Failed to play video:', e))
+    }
+
     // Production-ready video state checking
     const hasValidDimensions = video.videoWidth > 0 && video.videoHeight > 0
     const hasActiveStream = video.srcObject && (video.srcObject as MediaStream).active
@@ -85,9 +91,10 @@ function App() {
       currentTime: video.currentTime
     })
 
-    // Check video readiness (no await needed)
-    if (!hasValidDimensions || video.readyState < 2) {
-      console.log('Video not fully ready - using fallback dimensions')
+    // Don't capture if video is completely unready
+    if (video.readyState === 0 && video.videoWidth === 0) {
+      console.error('Video element not initialized - cannot capture')
+      return null
     }
 
     // Set canvas dimensions with fallbacks
